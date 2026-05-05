@@ -51,11 +51,9 @@ MIDDLEWARE = [
 # If it doesn't find it, it falls back to your local XAMPP MySQL.
 DATABASES = {
     'default': dj_database_url.config(
-        default='mysql://root:@127.0.0.1:3307/agrilink_db',
-        conn_max_age=600,
+        default='mysql://root:@127.0.0.1:3307/agrilink_db'
     )
 }
-
 # --- STATIC FILES ---
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
