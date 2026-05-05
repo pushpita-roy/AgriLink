@@ -1,17 +1,21 @@
 import os
 from pathlib import Path
 import pymysql
+import dj_database_url  # You need to install this
 
-# MySQL setup
-pymysql.version_info = (2, 2, 1, "final", 0)
+# MySQL setup for Django
+pymysql.version_info = (1, 4, 6, "final", 0)
 pymysql.install_as_MySQLdb()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = 'django-insecure-agrilink-dev-key'
-DEBUG = True
 
-# Allows any device on your Wi-Fi to access the server
-ALLOWED_HOSTS = ['*']
+# SECURITY: Use an environment variable for the key on Render
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-agrilink-dev-key')
+
+# SECURITY: Debug should be False in production
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+ALLOWED_HOSTS = ['*'] # Render will handle the specific domain
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -27,11 +31,13 @@ INSTALLED_APPS = [
     'products',
     'orders',
     'cart',
+    'whitenoise.runserver_nostatic', # For serving static files on Render
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware', # MUST be at the very top
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # Add this for static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -40,72 +46,20 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'agrilink.urls'
-
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
-
-WSGI_APPLICATION = 'agrilink.wsgi.application'
-
+# --- DATABASE CONFIGURATION ---
+# This looks for 'DATABASE_URL' (your Aiven URI) on Render.
+# If it doesn't find it, it falls back to your local XAMPP MySQL.
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'agrilink_db',
-        'USER': 'root',
-        'PASSWORD': '',
-        'HOST': '127.0.0.1',
-        'PORT': '3307',
-    }
+    'default': dj_database_url.config(
+        default='mysql://root:@127.0.0.1:3307/agrilink_db',
+        conn_max_age=600,
+    )
 }
 
-AUTH_USER_MODEL = 'accounts.User'
-
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
-}
-
-# --- CORS & CSRF CONFIGURATION (Crucial for Flutter Web) ---
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
-
-# Explicitly trust your local IP for CSRF
-CSRF_TRUSTED_ORIGINS = [
-    "http://192.168.0.105:5586",
-    "http://192.168.0.105:8000",
-    "http://localhost:5586",
-]
-
-# Allow common headers used by Flutter/http package
-CORS_ALLOW_HEADERS = [
-    "accept",
-    "authorization",
-    "content-type",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
-]
-# -----------------------------------------------------------
-
+# --- STATIC FILES ---
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
