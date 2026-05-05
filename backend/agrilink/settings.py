@@ -73,12 +73,11 @@ WSGI_APPLICATION = 'agrilink.wsgi.application'
 # Uses DATABASE_URL from Render (Aiven) or local XAMPP if URL is missing
 DATABASES = {
     'default': dj_database_url.config(
-        default='mysql://root:@127.0.0.1:3307/agrilink_db',
+        default=os.environ.get('DATABASE_URL'),
         conn_max_age=600,
-        ssl_require=True if os.environ.get('DATABASE_URL') else False
+        ssl_require=True
     )
 }
-
 # --- CORS SETTINGS (For Flutter APK) ---
 CORS_ALLOW_ALL_ORIGINS = True 
 
