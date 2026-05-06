@@ -196,13 +196,23 @@ def order_stats_view(request):
         # Admin counts EVERYTHING in the database
         total_orders = Order.objects.count() 
         pending_orders = Order.objects.filter(status='Pending').count()
-        total_revenue = Order.objects.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        
+        # FIXED: Only count revenue if Paid AND Delivered
+        total_revenue = Order.objects.filter(
+            payment_status='paid', 
+            status='delivered'
+        ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         
     elif user_role == 'farmer':
         farmer_orders = Order.objects.filter(items__farmer=user).distinct()
         total_orders = farmer_orders.count()
         pending_orders = farmer_orders.filter(status='Pending').count()
-        total_revenue = farmer_orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        
+        # FIXED: Only count farmer revenue if Paid AND Delivered
+        total_revenue = farmer_orders.filter(
+            payment_status='paid', 
+            status='delivered'
+        ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         
     else:
         # Buyer logic
