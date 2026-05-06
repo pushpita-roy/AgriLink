@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
+# Exit on error
 set -o errexit
 
+# Install dependencies
 pip install -r requirements.txt
 
-# Apply the migrations you just pushed
+# Migrate the database
 python manage.py migrate --noinput
 
-# Force sync any missing tables (like the Token table for Auth)
-python manage.py migrate --run-syncdb
-
+# Collect static files for the Admin panel design
 python manage.py collectstatic --noinput
 
-bash build.sh && python create_admin.py
+# RUN YOUR ADMIN SCRIPT HERE
+# (Make sure create_admin.py is in the same folder as manage.py)
+python create_admin.py
