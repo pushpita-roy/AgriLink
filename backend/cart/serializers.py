@@ -13,7 +13,7 @@ class CartItemSerializer(serializers.ModelSerializer):
     stock_qty = serializers.DecimalField(source='product.stock_qty', max_digits=10, decimal_places=2, read_only=True)    
 
     image_path = serializers.SerializerMethodField()
-    line_total = serializers.ReadOnlyField()
+    line_total = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
@@ -26,7 +26,7 @@ class CartItemSerializer(serializers.ModelSerializer):
             'location',
             'quantity',
             'image_path',
-            'line_total'
+            'line_total',
             'stock_qty'
         ]
 
