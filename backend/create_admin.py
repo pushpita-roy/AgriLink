@@ -10,27 +10,26 @@ from accounts.models import User
 # Configuration
 USERNAME = 'admin'
 EMAIL = 'admin@agrilink.com'
-PASSWORD = '@Admin00' 
+PASSWORD = '@Superuser0'  # FIXED: Added quotes around the password
 
 def create_superuser():
     try:
-        # Check if user exists
         user = User.objects.filter(username=USERNAME).first()
         
         if not user:
             print(f"Creating superuser for {USERNAME}...")
             User.objects.create_superuser(
-                username=superuser,
-                email=superuser@agrilink.com,
-                password=@Superuser0,
-                role='admin' # Sets the custom role for your app
+                username=USERNAME,
+                email=EMAIL,
+                password=PASSWORD,
+                role='admin'
             )
             print("Superuser created successfully!")
         else:
             print(f"Updating {USERNAME} to Superuser with Admin role...")
-            user.role = 'admin'      # Fixes the label in your Flutter app
-            user.is_staff = True     # Allows access to Django Admin
-            user.is_superuser = True # Gives all permissions
+            user.role = 'admin'
+            user.is_staff = True
+            user.is_superuser = True
             user.save()
             print("User updated to Superuser successfully!")
             
