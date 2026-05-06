@@ -109,3 +109,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Use the custom user model from the accounts app
 AUTH_USER_MODEL = 'accounts.User'
+
+# --- STATIC FILES ---
+STATIC_URL = '/static/'
+# This ensures it finds the folder correctly on Render's Linux server
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Use this specific WhiteNoise storage to avoid "Missing Manifest" 500 errors
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
