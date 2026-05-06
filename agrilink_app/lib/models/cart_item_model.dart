@@ -28,31 +28,36 @@ class CartItem {
   factory CartItem.fromJson(Map<String, dynamic> json) {
     debugPrint("SERVER SENT THIS ITEM: $json");
 
-    // Dig into 'product' or 'product_details'
-    final p = json['product_details'] ?? json['product'] ?? json;
+    // Dig into the nested product data
+    final p = json['product'] ?? json['product_details'] ?? json;
 
-    // IMAGE LOGIC: Django sometimes gives a relative path like /media/products/mango.jpg
-    // We need to make sure it's a full URL if possible.
-    String rawImage = json['product_image'] ?? p['image'] ?? p['product_image'] ?? '';
+    // --- PICTURE FIX ---
+    // Change this URL to match your Django server (e.g., http://10.0.2.2:8000 or http://localhost:8000)
+    String baseUrl = "http://127.0.0.1:8000";
+    String rawImage = p['image'] ?? p['product_image'] ?? json['product_image'] ?? '';
 
-    // If your image doesn't start with http, you might need to prepend your BASE_URL
-    // Example: if (!rawImage.startsWith('http')) rawImage = "http://127.0.0.1:8000$rawImage";
+    // If Django sends a relative path like "/media/...", we add the server URL
+    String finalImage = rawImage.startsWith('http')
+        ? rawImage
+        : rawImage.isNotEmpty ? "$baseUrl$rawImage" : "";
 
     return CartItem(
       id: json['id'].toString(),
       productId: (json['product_id'] ?? p['id'] ?? '').toString(),
-      productName: json['product_name'] ?? p['name'] ?? 'Mango',
+      productName: json['product_name'] ?? p['name'] ?? 'Product',
 
-      pricePerUnit: double.tryParse(json['price']?.toString() ?? '') ??
-          double.tryParse(p['price']?.toString() ?? '') ?? 0.0,
+      // --- PRICE FIX ---
+      // We look in 'p' (the product folder) specifically
+      pricePerUnit: double.tryParse(p['price']?.toString() ?? '') ??
+          double.tryParse(json['price']?.toString() ?? '') ??
+          double.tryParse(p['product_price']?.toString() ?? '') ?? 0.0,
 
       unitType: json['unit_type'] ?? p['unit_type'] ?? 'kg',
-
-      imagePath: rawImage,
-
+      imagePath: finalImage, // Using the fixed full URL
       quantity: int.tryParse(json['quantity']?.toString() ?? '1') ?? 1,
       location: json['location'] ?? p['location'] ?? '',
 
+      // --- STOCK (DO NOT CHANGE) ---
       stock: double.tryParse(p['product_stock']?.toString() ?? '') ??
           double.tryParse(p['stock']?.toString() ?? '') ??
           double.tryParse(p['stock_qty']?.toString() ?? '') ??
