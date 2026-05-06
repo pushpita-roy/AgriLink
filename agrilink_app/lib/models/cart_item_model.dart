@@ -28,36 +28,35 @@ class CartItem {
   factory CartItem.fromJson(Map<String, dynamic> json) {
     debugPrint("SERVER SENT THIS ITEM: $json");
 
-    // This looks for a nested product object which usually holds price/image
+    // Dig into 'product' or 'product_details'
     final p = json['product_details'] ?? json['product'] ?? json;
+
+    // IMAGE LOGIC: Django sometimes gives a relative path like /media/products/mango.jpg
+    // We need to make sure it's a full URL if possible.
+    String rawImage = json['product_image'] ?? p['image'] ?? p['product_image'] ?? '';
+
+    // If your image doesn't start with http, you might need to prepend your BASE_URL
+    // Example: if (!rawImage.startsWith('http')) rawImage = "http://127.0.0.1:8000$rawImage";
 
     return CartItem(
       id: json['id'].toString(),
       productId: (json['product_id'] ?? p['id'] ?? '').toString(),
+      productName: json['product_name'] ?? p['name'] ?? 'Mango',
 
-      // Look for name in top level OR inside product object
-      productName: json['product_name'] ?? p['name'] ?? p['product_name'] ?? 'Mango',
-
-      // PRICE: Check inside 'p' for 'price' or 'price_per_unit'
       pricePerUnit: double.tryParse(json['price']?.toString() ?? '') ??
-          double.tryParse(p['price']?.toString() ?? '') ??
-          double.tryParse(p['price_per_unit']?.toString() ?? '') ?? 0.0,
+          double.tryParse(p['price']?.toString() ?? '') ?? 0.0,
 
       unitType: json['unit_type'] ?? p['unit_type'] ?? 'kg',
 
-      // IMAGE: Check inside 'p' for 'image' or 'product_image'
-      imagePath: json['product_image'] ??
-          p['product_image'] ??
-          p['image'] ??
-          json['image'] ?? '',
+      imagePath: rawImage,
 
       quantity: int.tryParse(json['quantity']?.toString() ?? '1') ?? 1,
       location: json['location'] ?? p['location'] ?? '',
 
-      // STOCK: Matches your working logic but checks nesting too
-      stock: double.tryParse(json['product_stock']?.toString() ?? '') ??
-          double.tryParse(p['product_stock']?.toString() ?? '') ??
-          double.tryParse(p['stock']?.toString() ?? '') ?? 0.0,
+      stock: double.tryParse(p['product_stock']?.toString() ?? '') ??
+          double.tryParse(p['stock']?.toString() ?? '') ??
+          double.tryParse(p['stock_qty']?.toString() ?? '') ??
+          double.tryParse(json['product_stock']?.toString() ?? '') ?? 0.0,
     );
   }
 }

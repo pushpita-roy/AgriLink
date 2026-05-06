@@ -30,25 +30,41 @@ class CartProvider extends ChangeNotifier {
   }
 
   // FIXED: Only one declaration of updateQuantity now
-  Future<void> updateQuantity(String cartItemId, int quantity, int maxStock) async {
+  Future<void> updateQuantity(String cartItemId, int newQuantity, int maxStock) async {
     final index = _items.indexWhere((item) => item.id == cartItemId);
     if (index == -1) return;
 
-    if (quantity <= 0) {
+    // Use the larger of the two values to be safe
+    final double availableStock = maxStock > 0
+        ? maxStock.toDouble()
+        : _items[index].stock;
+
+    // If the user tries to go above stock, don't let them
+    if (newQuantity > availableStock) {
+      debugPrint("Update blocked: $newQuantity > $availableStock");
+      notifyListeners(); // Refresh UI to show the SnackBar
+      return;
+    }
+
+    if (newQuantity <= 0) {
       await removeFromCart(cartItemId);
       return;
     }
 
-    int availableStock = maxStock > 0 ? maxStock : _items[index].stock.toInt();
+    // Optimistic Update: Update locally first for speed
+    _items[index].quantity = newQuantity;
+    notifyListeners();
 
-    if (availableStock <= 0) {
-      availableStock = 999;
+    try {
+      final apiId = int.tryParse(cartItemId);
+      if (apiId != null) {
+        await ApiService.updateCartItem(apiId, newQuantity);
+      }
+    } catch (e) {
+      // If API fails, revert by fetching fresh data
+      await fetchCart();
     }
-
-    if (quantity > availableStock) {
-      notifyListeners();
-      return;
-    }
+  }
 
     _items[index].quantity = quantity;
     notifyListeners();
