@@ -102,8 +102,8 @@ def place_order_view(request):
             # কার্ট খালি করা
             request.user.cart_items.all().delete()
 
-    except Exception:
-        return Response({'detail': "Server error during order processing."}, status=500)
+    except Exception as e:
+        return Response({'detail': str(e)}, status=500)
 
     return Response(OrderSerializer(order).data, status=201)
 

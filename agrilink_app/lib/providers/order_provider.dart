@@ -102,16 +102,10 @@ class OrderProvider extends ChangeNotifier {
       double itemsTotal = 0.0;
 
       final formattedItems = items.map((item) {
-        double price = double.tryParse(item['price_per_unit']?.toString() ?? '') ??
-            double.tryParse(item['price']?.toString() ?? '') ?? 0.0;
-        int qty = int.tryParse(item['quantity']?.toString() ?? '1') ?? 1;
-
-        itemsTotal += (price * qty);
-
         return {
-          'product_id': item['product_id'],
-          'quantity': qty,
-          'price': price,
+          'product_id': int.tryParse(item['product_id'].toString()) ?? 0,
+          'quantity': int.tryParse(item['quantity'].toString()) ?? 1,
+          'price': double.tryParse(item['price_per_unit'].toString()) ?? 0.0,
         };
       }).toList();
 
