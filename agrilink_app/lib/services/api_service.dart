@@ -3,9 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 class ApiService {
-  static const String _serverIp = '192.168.0.15';
-
-  static String get baseUrl => 'http://$_serverIp:8000/api';
+  static String get baseUrl => 'https://agrilink-backend-pusz.onrender.com/api';
 
   static String? _token;
 
