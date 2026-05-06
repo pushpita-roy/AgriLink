@@ -22,9 +22,17 @@ class CartProvider extends ChangeNotifier {
       final response = await ApiService.getCart();
       final itemsList = response is List ? response : (response['items'] ?? []);
 
-      _items = (itemsList as List)
-          .map((j) => CartItem.fromJson(j))
-          .toList();
+      _items = (itemsList as List).map((j) {
+        final item = CartItem.fromJson(j);
+
+        // --- গুরুত্বপূর্ণ: ডাটা লোড হওয়ার সময় স্টক ভ্যালিডেশন ---
+        // যদি কার্টে স্টকের চেয়ে বেশি পণ্য থাকে (যেমন আপনার স্ক্রিনশটে ৬ > ২),
+        // তবে এটি অটোমেটিক কোয়ান্টিটিকে স্টকের সমান করে দেবে।
+        if (item.stock > 0 && item.quantity > item.stock) {
+          item.quantity = item.stock;
+        }
+        return item;
+      }).toList();
 
       notifyListeners();
     } catch (e) {
@@ -36,9 +44,16 @@ class CartProvider extends ChangeNotifier {
     if (product.stockQty <= 0) return;
 
     try {
+      // এপিআই কল করার আগে চেক করুন অলরেডি কার্টে স্টকের সমান আছে কি না
+      final existingIndex = _items.indexWhere((item) => item.productId == product.id);
+      if (existingIndex != -1 && _items[existingIndex].quantity >= product.stockQty) {
+        return; // আর অ্যাড হবে না
+      }
+
       await ApiService.addToCart(int.parse(product.id));
       await fetchCart();
     } catch (e) {
+      // অফলাইন/এরর হ্যান্ডলিং আগের মতোই
       final existingIndex = _items.indexWhere((item) => item.productId == product.id);
       if (existingIndex != -1) {
         if (_items[existingIndex].quantity < product.stockQty) {
@@ -74,43 +89,33 @@ class CartProvider extends ChangeNotifier {
     }
   }
 
-  // --- এই মেথডটি এখন একদম নিরাপদ ---
   Future<void> updateQuantity(String cartItemId, int quantity, int maxStock) async {
     final index = _items.indexWhere((item) => item.id == cartItemId);
     if (index == -1) return;
 
-    // ১. আসল স্টক নির্ধারণ (মডেল থেকে অথবা স্ক্রিন থেকে আসা maxStock)
-    // যদি মডেলে ০ বা ৯৯৯ থাকে, তবে স্ক্রিন থেকে পাঠানো maxStock ব্যবহার করো
-    int currentItemStock = _items[index].stock;
-    int limit = (currentItemStock == 0 || currentItemStock == 999) ? maxStock : currentItemStock;
+    // ডাটাবেজ থেকে আসা রিয়েল স্টক ব্যবহার করুন
+    int availableStock = _items[index].stock > 0 ? _items[index].stock : maxStock;
 
-    // ২. হার্ড লক: কোয়ান্টিটি যেন লিমিটের বেশি না হয়
-    int finalQuantity = quantity;
-    if (finalQuantity > limit) {
-      finalQuantity = limit;
+    if (quantity > availableStock) {
+      quantity = availableStock; // ডাইনামিক লক
     }
 
-    // ৩. যদি ১ এর নিচে নামাতে চায় (০ হয়ে যায়), তবে রিমুভ করো
-    if (finalQuantity < 1) {
+    if (quantity < 1) {
       await removeFromCart(cartItemId);
       return;
     }
 
-    // ৪. আপডেট লজিক
-    int oldQty = _items[index].quantity;
-    _items[index].quantity = finalQuantity;
+    _items[index].quantity = quantity;
     notifyListeners();
 
     try {
       final apiId = int.tryParse(cartItemId);
       if (apiId != null) {
-        await ApiService.updateCartItem(apiId, finalQuantity);
+        await ApiService.updateCartItem(apiId, quantity);
       }
     } catch (e) {
-      print("DEBUG: API Update Failed: $e");
-      // এরর হলে আগের কোয়ান্টিটিতে ফিরে যাও
-      _items[index].quantity = oldQty;
-      notifyListeners();
+      print("API Error: $e");
+      fetchCart();
     }
   }
 
