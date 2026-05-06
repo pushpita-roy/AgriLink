@@ -24,10 +24,9 @@ class CartProvider extends ChangeNotifier {
 
       _items = (itemsList as List).map((j) {
         final item = CartItem.fromJson(j);
+        // অটো-কারেকশন: যদি কার্টে স্টকের বেশি থাকে তবে কমিয়ে দাও
         if (item.stock > 0 && item.quantity > item.stock) {
           item.quantity = item.stock;
-
-          // এপিআইকেও জানিয়ে দাও যে এটা কমিয়ে দেওয়া হয়েছে
           final apiId = int.tryParse(item.id);
           if (apiId != null) ApiService.updateCartItem(apiId, item.stock);
         }
@@ -44,38 +43,15 @@ class CartProvider extends ChangeNotifier {
     if (product.stockQty <= 0) return;
 
     try {
-      // এপিআই কল করার আগে চেক করুন অলরেডি কার্টে স্টকের সমান আছে কি না
       final existingIndex = _items.indexWhere((item) => item.productId == product.id);
       if (existingIndex != -1 && _items[existingIndex].quantity >= product.stockQty) {
-        return; // আর অ্যাড হবে না
+        return;
       }
 
       await ApiService.addToCart(int.parse(product.id));
       await fetchCart();
     } catch (e) {
-      // অফলাইন/এরর হ্যান্ডলিং আগের মতোই
-      final existingIndex = _items.indexWhere((item) => item.productId == product.id);
-      if (existingIndex != -1) {
-        if (_items[existingIndex].quantity < product.stockQty) {
-          _items[existingIndex].quantity++;
-        }
-      } else {
-        _items.add(
-          CartItem(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            userId: userId,
-            productId: product.id,
-            productName: product.name,
-            pricePerUnit: product.pricePerUnit,
-            unitType: product.unitType,
-            imagePath: product.imagePath,
-            quantity: 1,
-            location: product.location,
-            stock: product.stockQty.toInt(),
-          ),
-        );
-      }
-      notifyListeners();
+      print("Add to cart error: $e");
     }
   }
 
@@ -93,28 +69,24 @@ class CartProvider extends ChangeNotifier {
     final index = _items.indexWhere((item) => item.id == cartItemId);
     if (index == -1) return;
 
-    // ডাটাবেজ থেকে আসা রিয়েল স্টক ব্যবহার করুন
-    int availableStock = _items[index].stock > 0 ? _items[index].stock : maxStock;
-
-    if (quantity > availableStock) {
-      quantity = availableStock; // ডাইনামিক লক
-    }
-
-    if (quantity < 1) {
+    if (quantity <= 0) {
       await removeFromCart(cartItemId);
       return;
     }
 
-    _items[index].quantity = quantity;
+    // প্লাস বাটন লজিক: স্টকের বেশি হতে দেবে না
+    int availableStock = _items[index].stock > 0 ? _items[index].stock : maxStock;
+    int finalQuantity = quantity > availableStock ? availableStock : quantity;
+
+    _items[index].quantity = finalQuantity;
     notifyListeners();
 
     try {
       final apiId = int.tryParse(cartItemId);
       if (apiId != null) {
-        await ApiService.updateCartItem(apiId, quantity);
+        await ApiService.updateCartItem(apiId, finalQuantity);
       }
     } catch (e) {
-      print("API Error: $e");
       fetchCart();
     }
   }

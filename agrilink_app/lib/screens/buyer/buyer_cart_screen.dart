@@ -115,14 +115,12 @@ class BuyerCartScreen extends StatelessWidget {
                                   _QuantityButton(
                                     icon: Icons.remove,
                                     onPressed: () {
-                                      // FIX: Ensure it stays at 1 or above
-                                      if (item.quantity > 1) {
                                         cartProvider.updateQuantity(
                                           item.id,
                                           item.quantity - 1,
-                                          item.stock > 0 ? item.stock : 999, // Fallback if stock is 0
+                                          item.stock,
                                         );
-                                      }
+                                      },
                                     },
                                   ),
                                   Padding(
@@ -140,23 +138,20 @@ class BuyerCartScreen extends StatelessWidget {
                                   _QuantityButton(
                                     icon: Icons.add,
                                     onPressed: () {
-                                      // FIX: The original code blocked clicks if stock was 0.
-                                      // We use a fallback of 999 to ensure the button actually works.
-                                      int availableStock = item.stock > 0 ? item.stock : 999;
-
-                                      if (item.quantity < availableStock) {
+                                      if (item.quantity < item.stock) {
                                         cartProvider.updateQuantity(
                                           item.id,
                                           item.quantity + 1,
-                                          availableStock,
+                                          item.stock,
                                         );
                                       } else {
-                                        // Show message if reaches stock limit
+                                        // লিমিট শেষ হলে মেসেজ দেখাবে
                                         ScaffoldMessenger.of(context).hideCurrentSnackBar();
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Stock limit exceeded!'),
+                                          SnackBar(
+                                            content: Text('Stock limit exceeded! Only ${item.stock} available.'),
                                             backgroundColor: Colors.orange,
+                                            behavior: SnackBarBehavior.floating,
                                           ),
                                         );
                                       }
