@@ -211,20 +211,22 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  static Future<Map<String, dynamic>> placeOrder(List<dynamic> items, double total) async {
+  static Future<Map<String, dynamic>> placeOrder({
+    required String paymentMethod,
+    required String shippingAddress,
+    required List<dynamic> items,
+    required double totalAmount,
+  }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/orders/add/'),
-      headers: _headers,
+      headers: _headers, // This includes your Auth Token
       body: jsonEncode({
-        'items': items.map((item) => {
-          'product': item.productId,
-          'quantity': item.quantity,
-          'price': item.pricePerUnit,
-        }).toList(),
-        'total_amount': total,
+        'payment_method': paymentMethod,
+        'shipping_address': shippingAddress,
+        'items': items,
+        'total_amount': totalAmount,
       }),
     );
-
     return _handleResponse(response);
   }
 

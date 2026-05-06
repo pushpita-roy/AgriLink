@@ -96,21 +96,28 @@ class OrderProvider extends ChangeNotifier {
     required List<Map<String, dynamic>> items,
   }) async {
     try {
-      double deliveryCharge = 130.0;
-      if (buyerDivision.trim().toLowerCase() == farmerDivision.trim().toLowerCase()) {
-        deliveryCharge = 80.0;
-      }
+      // 1. Calculate Delivery Charge
+      double deliveryCharge = (buyerDivision.trim().toLowerCase() == farmerDivision.trim().toLowerCase())
+          ? 80.0
+          : 130.0;
 
+      // 2. Calculate Total Amount
+      double itemsTotal = items.fold(0, (sum, item) => sum + (item['price'] * item['quantity']));
+      double finalTotal = itemsTotal + deliveryCharge;
+
+      // 3. Call Service with MATCHING arguments
       final response = await ApiService.placeOrder(
         paymentMethod: paymentMethod,
         shippingAddress: shippingAddress,
         items: items,
+        totalAmount: finalTotal, // Now passing the total!
       );
 
       final newOrder = Order.fromJson(response);
       _orders.insert(0, newOrder);
       notifyListeners();
     } catch (e) {
+      debugPrint("Order Placement Error: $e");
       rethrow;
     }
   }
