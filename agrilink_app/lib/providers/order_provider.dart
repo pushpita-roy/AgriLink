@@ -99,13 +99,20 @@ class OrderProvider extends ChangeNotifier {
       double deliveryCharge = (buyerDivision.trim().toLowerCase() == farmerDivision.trim().toLowerCase())
           ? 80.0 : 130.0;
 
-      double itemsTotal = 0.0;
+      double itemsTotal = 0.0; // Starts at 0
 
+      // FIX: Calculate the items total INSIDE the loop
       final formattedItems = items.map((item) {
+        double price = double.tryParse(item['price_per_unit']?.toString() ?? '0') ?? 0.0;
+        int qty = int.tryParse(item['quantity']?.toString() ?? '1') ?? 1;
+
+        // Update the running total!
+        itemsTotal += (price * qty);
+
         return {
           'product_id': int.tryParse(item['product_id'].toString()) ?? 0,
-          'quantity': int.tryParse(item['quantity'].toString()) ?? 1,
-          'price': double.tryParse(item['price_per_unit'].toString()) ?? 0.0,
+          'quantity': qty,
+          'price': price,
         };
       }).toList();
 
@@ -113,7 +120,7 @@ class OrderProvider extends ChangeNotifier {
         paymentMethod: paymentMethod,
         shippingAddress: shippingAddress,
         items: formattedItems,
-        totalAmount: itemsTotal + deliveryCharge,
+        totalAmount: itemsTotal + deliveryCharge, // Now this has the REAL price
       );
 
       final newOrder = Order.fromJson(response);

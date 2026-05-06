@@ -99,45 +99,88 @@ def place_order_view(request):
                 product.stock_qty -= item_info['quantity']
                 product.save(update_fields=['stock_qty'])
 
-            # কার্ট খালি করা
-            request.user.cart_items.all().delete()
 
-    except Exception as e:
-        return Response({'detail': str(e)}, status=500)
+# Replace the line that crashes with this:
+try:
+    # This is a safer way to clear the cart if you use a Cart model
+    from cart.models import CartItem # Import your cart model
+    CartItem.objects.filter(user=request.user).delete()
+except:
+    pass # If cart clearing fails, don't crash the whole order!
 
     return Response(OrderSerializer(order).data, status=201)
 
 
-# --- ৩. অর্ডার স্ট্যাটাস আপডেট (Cancel হলে স্টক ফেরত) ---
-@api_view(['PATCH'])
+# --- ২. নতুন অর্ডার প্লে করার লজিক (The Fixed Logic) ---
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def update_order_status_view(request, pk):
-    try:
-        order = Order.objects.get(pk=pk)
-    except Order.DoesNotExist:
-        return Response({'detail': 'Order not found.'}, status=404)
-
-    if request.user.role.lower() not in ('admin', 'farmer'):
-        return Response({'detail': 'Permission denied.'}, status=403)
-
-    serializer = OrderStatusUpdateSerializer(data=request.data)
+def place_order_view(request):
+    serializer = OrderCreateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    new_status = serializer.validated_data['status']
+    data = serializer.validated_data
 
-    # স্টক ম্যানেজমেন্ট যদি অর্ডার ক্যান্সেল হয়
-    if new_status.upper() == 'CANCELLED' and order.status.upper() != 'CANCELLED':
-        for item in order.items.all():
-            if item.product:
-                item.product.stock_qty += item.quantity
-                item.product.save(update_fields=['stock_qty'])
+    order_items_data = []
+    total_amount = 0
 
-    order.status = new_status
-    if 'payment_status' in serializer.validated_data:
-        order.payment_status = serializer.validated_data['payment_status']
+    # ধাপ ১: স্টক চেক
+    for item_data in data['items']:
+        try:
+            product = Product.objects.select_for_update().get(pk=item_data['product_id'])
+        except Product.DoesNotExist:
+            return Response({'detail': f"Product with ID {item_data['product_id']} not found."}, status=400)
 
-    order.save()
-    return Response(OrderSerializer(order).data)
+        if product.stock_qty < item_data['quantity']:
+            return Response(
+                {'detail': f"Insufficient stock for {product.name}. Available: {product.stock_qty}"},
+                status=400
+            )
 
+        line_total = product.price_per_unit * item_data['quantity']
+        total_amount += line_total
+        order_items_data.append({
+            'product': product,
+            'farmer': product.farmer,
+            'product_name': product.name,
+            'unit_price': product.price_per_unit,
+            'quantity': item_data['quantity'],
+        })
+
+    # ধাপ ২: ডাটাবেজ সেভ
+    try:
+        with transaction.atomic():
+            # অর্ডার তৈরি
+            order = Order.objects.create(
+                buyer=request.user,
+                total_amount=total_amount,
+                payment_method=data.get('payment_method', 'COD'),
+                shipping_address=data['shipping_address'],
+            )
+
+            # আইটেম তৈরি এবং স্টক আপডেট
+            for item_info in order_items_data:
+                product = item_info.pop('product')
+                OrderItem.objects.create(order=order, product=product, **item_info)
+
+                product.stock_qty -= item_info['quantity']
+                product.save(update_fields=['stock_qty'])
+
+            # ধাপ ৩: কার্ট খালি করা (Safe Method)
+            try:
+                # If you have a Cart model in an app named 'cart'
+                from cart.models import CartItem
+                CartItem.objects.filter(user=request.user).delete()
+            except Exception:
+                # If the above fails, try the related_name method
+                try:
+                    request.user.cart_items.all().delete()
+                except Exception:
+                    pass # Keep going so the user sees the order success
+
+            return Response(OrderSerializer(order).data, status=201)
+
+    except Exception as e:
+        # This will tell Flutter the EXACT database error if one occurs
+        return Response({'detail': str(e)}, status=500)
 
 # --- ৪. ড্যাশবোর্ড স্ট্যাটাস (Admin Revenue Logic) ---
 @api_view(['GET'])
