@@ -18,14 +18,21 @@ class ApiService {
   }
 
   // ── Auth Section ──────────────────────────────────────────────────
-  static Future<Map<String, dynamic>> login(String email, String password,
-      String role) async {
+  static Future<Map<String, dynamic>> login(String email, String password, String role) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login/'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password, 'role': role}),
     );
-    return _handleResponse(response);
+
+    final result = _handleResponse(response);
+
+    // FIXED: Save the token so other requests can use it
+    if (result != null && result['token'] != null) {
+      _token = result['token'];
+    }
+
+    return result;
   }
 
   static Future<Map<String, dynamic>> register({
@@ -46,7 +53,15 @@ class ApiService {
         'division': division,
       }),
     );
-    return _handleResponse(response);
+
+    final result = _handleResponse(response);
+
+    // FIXED: Save the token after registration too
+    if (result != null && result['token'] != null) {
+      _token = result['token'];
+    }
+
+    return result;
   }
 
   static Future<void> logout() async {
@@ -104,7 +119,12 @@ class ApiService {
   }) async {
     var request = http.MultipartRequest(
         'POST', Uri.parse('$baseUrl/products/'));
-    if (_token != null) request.headers['Authorization'] = 'Token $_token';
+
+    // VERIFIED: Header must have the space after 'Token '
+    if (_token != null) {
+      request.headers['Authorization'] = 'Token $_token';
+    }
+
     request.fields.addAll(fields);
     if (imageBytes != null && imageName != null) {
       request.files.add(http.MultipartFile.fromBytes(
@@ -212,9 +232,6 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  // ── User Management Section ───────────────────────────────────────
-
-  // FIXED: Removed 'await' and parentheses because _headers is a getter variable
   static Future<dynamic> getAllUsers() async {
     try {
       final response = await http.get(
