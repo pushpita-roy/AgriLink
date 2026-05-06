@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-agrilink-dev-key')
 
 # Debug should be False in production (Render)
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+DEBUG = True
 
 # Allow Render domains and local testing
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']
