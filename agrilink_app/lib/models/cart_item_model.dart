@@ -26,23 +26,26 @@ class CartItem {
   factory CartItem.fromJson(Map<String, dynamic> json) {
     return CartItem(
       id: json['id'].toString(),
+      // Fallback for product_id vs product
       productId: (json['product_id'] ?? json['product'] ?? '').toString(),
-      productName: json['product_name'] ?? '',
+      productName: json['product_name'] ?? 'Product',
 
-      // Fixed: Use pricePerUnit to match the variable name above
-      pricePerUnit: double.tryParse(json['price'].toString()) ?? 0.0,
+      // SAFE PARSING: Check all possible price keys
+      pricePerUnit: double.tryParse(json['price'].toString()) ??
+          double.tryParse(json['product_price'].toString()) ?? 0.0,
 
       unitType: json['unit_type'] ?? 'kg',
 
-      // Fixed: Use imagePath to match the variable name above
-      imagePath: json['product_image'] ?? json['image_url'] ?? '',
+      // IMAGE FIX: Django usually sends 'product_image' or 'image'
+      imagePath: json['product_image'] ?? json['image_url'] ?? json['image'] ?? '',
 
       quantity: int.tryParse(json['quantity'].toString()) ?? 1,
-
       location: json['location'] ?? '',
 
-      // Fixed: Stock is a double to handle "5.00"
-      stock: double.tryParse(json['product_stock'].toString()) ?? 0.0,
+      // STOCK FIX: This is why your button says "Only 0 available"
+      stock: double.tryParse(json['product_stock'].toString()) ??
+          double.tryParse(json['stock_qty'].toString()) ??
+          double.tryParse(json['stock'].toString()) ?? 0.0,
     );
   }
 }
