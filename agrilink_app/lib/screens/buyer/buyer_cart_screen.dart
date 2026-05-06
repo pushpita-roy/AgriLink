@@ -71,7 +71,6 @@ class BuyerCartScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(12),
                     child: Row(
                       children: [
-                        // Product image
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: CachedNetworkImage(
@@ -89,7 +88,6 @@ class BuyerCartScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // Details
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,12 +113,12 @@ class BuyerCartScreen extends StatelessWidget {
                                   _QuantityButton(
                                     icon: Icons.remove,
                                     onPressed: () {
-                                        cartProvider.updateQuantity(
-                                          item.id,
-                                          item.quantity - 1,
-                                          item.stock,
-                                        );
-                                      },
+                                      // সরাসরি প্রোভাইডার কল করছি, ০ হলে রিমুভ হবে
+                                      cartProvider.updateQuantity(
+                                        item.id,
+                                        item.quantity - 1,
+                                        item.stock,
+                                      );
                                     },
                                   ),
                                   Padding(
@@ -145,13 +143,17 @@ class BuyerCartScreen extends StatelessWidget {
                                           item.stock,
                                         );
                                       } else {
-                                        // লিমিট শেষ হলে মেসেজ দেখাবে
-                                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(context)
+                                            .hideCurrentSnackBar();
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
                                           SnackBar(
-                                            content: Text('Stock limit exceeded! Only ${item.stock} available.'),
-                                            backgroundColor: Colors.orange,
-                                            behavior: SnackBarBehavior.floating,
+                                            content: Text(
+                                                'Stock limit exceeded! Only ${item.stock} available.'),
+                                            backgroundColor:
+                                            Colors.orange,
+                                            behavior: SnackBarBehavior
+                                                .floating,
                                           ),
                                         );
                                       }
@@ -162,7 +164,6 @@ class BuyerCartScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        // Line total and delete
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -173,8 +174,8 @@ class BuyerCartScreen extends StatelessWidget {
                                 size: 20,
                               ),
                               onPressed: () async {
-                                // FIX: Use async/await for delete to ensure sync
-                                await cartProvider.removeFromCart(item.id);
+                                await cartProvider
+                                    .removeFromCart(item.id);
                               },
                             ),
                             Text(
@@ -194,14 +195,13 @@ class BuyerCartScreen extends StatelessWidget {
               },
             ),
           ),
-          // Checkout section
           Container(
             padding: const EdgeInsets.all(AppDimens.paddingMedium),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
+                  color: Colors.black12,
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),
@@ -282,7 +282,10 @@ class BuyerCartScreen extends StatelessWidget {
 
     String fDiv = "";
     if (cartProvider.items.isNotEmpty) {
-      fDiv = (cartProvider.items.first.location ?? "").toString().trim().toLowerCase();
+      fDiv = (cartProvider.items.first.location ?? "")
+          .toString()
+          .trim()
+          .toLowerCase();
     }
 
     bool isSame = (bDiv.isNotEmpty && fDiv.isNotEmpty && bDiv == fDiv);
@@ -300,14 +303,18 @@ class BuyerCartScreen extends StatelessWidget {
           builder: (context, setModalState) {
             return Padding(
               padding: EdgeInsets.only(
-                left: 24, right: 24, top: 24,
+                left: 24,
+                right: 24,
+                top: 24,
                 bottom: MediaQuery.of(context).viewInsets.bottom + 24,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Checkout', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const Text('Checkout',
+                      style:
+                      TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 20),
                   ListTile(
                     leading: const Icon(Icons.location_on, color: Colors.green),
@@ -316,28 +323,38 @@ class BuyerCartScreen extends StatelessWidget {
                     contentPadding: EdgeInsets.zero,
                   ),
                   const Divider(),
-                  _buildPriceRow('Subtotal:', 'TK ${cartProvider.totalAmount.toInt()}'),
+                  _buildPriceRow(
+                      'Subtotal:', 'TK ${cartProvider.totalAmount.toInt()}'),
                   _buildPriceRow(
                     'Delivery Fee:',
                     'TK ${deliveryFee.toInt()}',
-                    subtitle: isSame ? '(Inside Division)' : '(Outside Division)',
+                    subtitle:
+                    isSame ? '(Inside Division)' : '(Outside Division)',
                     color: isSame ? Colors.green : Colors.orange,
                   ),
                   const Divider(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Total Amount:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text('TK ${grandTotal.toInt()}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green)),
+                      const Text('Total Amount:',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text('TK ${grandTotal.toInt()}',
+                          style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green)),
                     ],
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () async {
-                      final items = cartProvider.items.map((item) => {
+                      final items = cartProvider.items
+                          .map((item) => {
                         'product_id': int.parse(item.productId),
                         'quantity': item.quantity,
-                      }).toList();
+                      })
+                          .toList();
 
                       try {
                         await ctx.read<OrderProvider>().placeOrder(
@@ -366,7 +383,8 @@ class BuyerCartScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPriceRow(String label, String value, {String? subtitle, Color? color}) {
+  Widget _buildPriceRow(String label, String value,
+      {String? subtitle, Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
@@ -376,11 +394,14 @@ class BuyerCartScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(label, style: const TextStyle(fontSize: 16)),
-              Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+              Text(value,
+                  style: TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold, color: color)),
             ],
           ),
           if (subtitle != null)
-            Text(subtitle, style: TextStyle(fontSize: 12, color: color ?? Colors.grey)),
+            Text(subtitle,
+                style: TextStyle(fontSize: 12, color: color ?? Colors.grey)),
         ],
       ),
     );
