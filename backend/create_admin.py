@@ -10,7 +10,7 @@ from accounts.models import User
 # Configuration - Change these to what you want!
 USERNAME = 'admin'
 EMAIL = 'admin@agrilink.com'
-PASSWORD = 'YourSecurePassword123' 
+PASSWORD = '@Admin00' 
 
 def create_superuser():
     try:
