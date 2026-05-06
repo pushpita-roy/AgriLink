@@ -10,6 +10,11 @@ class CartProvider extends ChangeNotifier {
 
   double get totalAmount => _items.fold(0, (sum, item) => sum + item.lineTotal);
 
+  // FIXED: Added back missing method for ProductDetailScreen
+  bool isInCart(String productId) {
+    return _items.any((item) => item.productId == productId);
+  }
+
   Future<void> fetchCart() async {
     try {
       final response = await ApiService.getCart();
@@ -21,6 +26,7 @@ class CartProvider extends ChangeNotifier {
     }
   }
 
+  // FIXED: Only one declaration of updateQuantity now
   Future<void> updateQuantity(String cartItemId, int quantity, int maxStock) async {
     final index = _items.indexWhere((item) => item.id == cartItemId);
     if (index == -1) return;
@@ -30,16 +36,14 @@ class CartProvider extends ChangeNotifier {
       return;
     }
 
-    // Determine actual available stock
     int availableStock = maxStock > 0 ? maxStock : _items[index].stock;
 
-    // SAFETY FALLBACK: If app thinks stock is 0 but item is in cart, bypass the block
     if (availableStock <= 0) {
       availableStock = 999;
     }
 
     if (quantity > availableStock) {
-      notifyListeners(); // Triggers "Stock limit reached" snackbar in UI
+      notifyListeners();
       return;
     }
 
@@ -52,7 +56,7 @@ class CartProvider extends ChangeNotifier {
         await ApiService.updateCartItem(apiId, quantity);
       }
     } catch (e) {
-      await fetchCart(); // Revert on failure
+      await fetchCart();
     }
   }
 
@@ -79,39 +83,6 @@ class CartProvider extends ChangeNotifier {
       await ApiService.removeCartItem(int.parse(cartItemId));
     } catch (e) {
       print("DEBUG: Remove Failed: $e");
-    }
-  }
-
-  Future<void> updateQuantity(String cartItemId, int quantity, int maxStock) async {
-    final index = _items.indexWhere((item) => item.id == cartItemId);
-    if (index == -1) return;
-
-    if (quantity <= 0) {
-      await removeFromCart(cartItemId);
-      return;
-    }
-
-    int availableStock = maxStock > 0 ? maxStock : _items[index].stock;
-
-    if (availableStock <= 0) {
-      availableStock = _items[index].quantity > 0 ? _items[index].quantity : 1;
-    }
-
-    if (quantity > availableStock) {
-      notifyListeners();
-      return;
-    }
-
-    _items[index].quantity = quantity;
-    notifyListeners();
-
-    try {
-      final apiId = int.tryParse(cartItemId);
-      if (apiId != null) {
-        await ApiService.updateCartItem(apiId, quantity);
-      }
-    } catch (e) {
-      await fetchCart();
     }
   }
 

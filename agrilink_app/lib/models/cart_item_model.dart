@@ -26,14 +26,13 @@ class CartItem {
   factory CartItem.fromJson(Map<String, dynamic> json) {
     return CartItem(
       id: json['id'].toString(),
-      productId: (json['product_id'] ?? '').toString(),
+      productId: (json['product_id'] ?? json['product'] ?? '').toString(),
       productName: json['product_name'] ?? '',
       location: json['location']?.toString() ?? '',
-      price_per_unit: double.parse((json['price_per_unit'] ?? '0').toString()),
+      pricePerUnit: double.parse((json['price_per_unit'] ?? json['price'] ?? '0').toString()),
       unitType: json['unit_type'] ?? '',
       imagePath: json['image_path'] ?? '',
       quantity: json['quantity'] ?? 1,
-      // Fixed parsing: converts 5.00 to 5
       stock: json['stock_qty'] != null ? (json['stock_qty'] as num).toInt() : 0,
     );
   }
