@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# exit on error
 set -o errexit
 
 pip install -r requirements.txt
 
-# This forces Django to see the changes even if it's confused
-python manage.py makemigrations accounts
-python manage.py makemigrations products
+# Apply the migrations you just pushed
 python manage.py migrate --noinput
+
+# Force sync any missing tables (like the Token table for Auth)
+python manage.py migrate --run-syncdb
 
 python manage.py collectstatic --noinput
