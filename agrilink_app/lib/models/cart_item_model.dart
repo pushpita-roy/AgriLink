@@ -2,12 +2,12 @@ class CartItem {
   final String id;
   final String productId;
   final String productName;
-  final double pricePerUnit;
+  final double pricePerUnit; // Name matches constructor
   final String unitType;
-  final String imagePath;
+  final String imagePath;    // Name matches constructor
   int quantity;
   final String location;
-  final int stock;
+  final double stock;        // Changed from int to double to match "5.00"
 
   CartItem({
     required this.id,
@@ -17,8 +17,8 @@ class CartItem {
     this.unitType = 'kg',
     this.imagePath = '',
     this.quantity = 1,
-    required this.location,
-    this.stock = 0,
+    this.location = '',
+    this.stock = 0.0,
   });
 
   double get lineTotal => pricePerUnit * quantity;
@@ -28,12 +28,21 @@ class CartItem {
       id: json['id'].toString(),
       productId: (json['product_id'] ?? json['product'] ?? '').toString(),
       productName: json['product_name'] ?? '',
-      location: json['location']?.toString() ?? '',
-      pricePerUnit: double.parse((json['price_per_unit'] ?? json['price'] ?? '0').toString()),
-      unitType: json['unit_type'] ?? '',
-      imagePath: json['image_path'] ?? '',
-      quantity: json['quantity'] ?? 1,
-      stock: json['stock_qty'] != null ? (json['stock_qty'] as num).toInt() : 0,
+
+      // Fixed: Use pricePerUnit to match the variable name above
+      pricePerUnit: double.tryParse(json['price'].toString()) ?? 0.0,
+
+      unitType: json['unit_type'] ?? 'kg',
+
+      // Fixed: Use imagePath to match the variable name above
+      imagePath: json['product_image'] ?? json['image_url'] ?? '',
+
+      quantity: int.tryParse(json['quantity'].toString()) ?? 1,
+
+      location: json['location'] ?? '',
+
+      // Fixed: Stock is a double to handle "5.00"
+      stock: double.tryParse(json['product_stock'].toString()) ?? 0.0,
     );
   }
 }

@@ -61,25 +61,24 @@ class CartProvider extends ChangeNotifier {
   }
 
   Future<void> addToCart(Product product, String userId) async {
-    if (product.stockQty <= 0) {
-      print("Local block: No stock available");
-      return;
-    }
-
     try {
+      // 1. Local check
       final existingIndex = _items.indexWhere((item) => item.productId == product.id);
       if (existingIndex != -1) {
         if (_items[existingIndex].quantity >= product.stockQty) {
-          print("Local block: Already reached stock limit in cart");
-          return;
+          throw Exception("You already have all available stock in your cart.");
         }
       }
 
+      // 2. Call API
       await ApiService.addToCart(int.parse(product.id));
 
+      // 3. REFRESH is key - it gets the fresh data from server
       await fetchCart();
+
     } catch (e) {
-      print("Server rejected Add to Cart: $e");
+      // This allows the SnackBar in your UI to show the actual error
+      debugPrint("CartProvider Error: $e");
       rethrow;
     }
   }

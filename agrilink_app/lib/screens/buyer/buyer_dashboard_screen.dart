@@ -338,18 +338,47 @@ class _AvailableProductCard extends StatelessWidget {
                       ],
                     )
                         : ElevatedButton(
-                      onPressed: () {
-                        if (product.stockQty <= 0) {
-                          _showStockWarning(context, 0);
-                        } else {
-                          cartProvider.addToCart(product, user.id);
+                      onPressed: product.stockQty <= 0
+                          ? null
+                          : () async {
+                        try {
+                          // 1. Use .read instead of .watch for the action
+                          final provider = context.read<CartProvider>();
+
+                          // 2. Await the server response
+                          await provider.addToCart(product, user.id);
+
+                          // 3. Show a success message
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${product.name} added to cart!'),
+                                backgroundColor: Colors.green,
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          // 4. THIS IS KEY: It will show you why it's failing
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(e.toString().replaceAll('Exception: ', '')),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
                       },
                       style: ElevatedButton.styleFrom(
                         padding: EdgeInsets.zero,
+                        backgroundColor: product.stockQty <= 0 ? Colors.grey : AppColors.primary,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      child: const Text('Add to Cart', style: TextStyle(fontSize: 12)),
+                      child: Text(
+                          product.stockQty <= 0 ? 'Out of Stock' : 'Add to Cart',
+                          style: const TextStyle(fontSize: 12, color: Colors.white)
+                      ),
                     ),
                   ),
                 ],
