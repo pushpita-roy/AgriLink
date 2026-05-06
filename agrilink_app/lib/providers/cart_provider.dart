@@ -18,6 +18,9 @@ class CartProvider extends ChangeNotifier {
   Future<void> fetchCart() async {
     try {
       final response = await ApiService.getCart();
+
+      print("SERVER DATA: $response");
+
       final itemsList = response is List ? response : (response['items'] ?? []);
       _items = (itemsList as List).map((j) => CartItem.fromJson(j)).toList();
       notifyListeners();
