@@ -211,19 +211,20 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  static Future<Map<String, dynamic>> placeOrder({
-    required String paymentMethod, required String shippingAddress, required List<
-        Map<String, dynamic>> items,
-  }) async {
+  static Future<Map<String, dynamic>> placeOrder(List<dynamic> items, double total) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/orders/place/'),
+      Uri.parse('$baseUrl/orders/add/'),
       headers: _headers,
       body: jsonEncode({
-        'payment_method': paymentMethod,
-        'shipping_address': shippingAddress,
-        'items': items
+        'items': items.map((item) => {
+          'product': item.productId,
+          'quantity': item.quantity,
+          'price': item.pricePerUnit,
+        }).toList(),
+        'total_amount': total,
       }),
     );
+
     return _handleResponse(response);
   }
 
