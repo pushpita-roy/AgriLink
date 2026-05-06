@@ -71,13 +71,26 @@ WSGI_APPLICATION = 'agrilink.wsgi.application'
 
 # --- DATABASE CONFIGURATION ---
 # Uses DATABASE_URL from Render (Aiven) or local XAMPP if URL is missing
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
-        conn_max_age=600,
-        ssl_require=not DEBUG 
-    )
-}# --- CORS SETTINGS (For Flutter APK) ---
+# --- DATABASE CONFIGURATION ---
+# 1. Clear the config
+db_config = dj_database_url.config(
+    default=os.environ.get('DATABASE_URL'),
+    conn_max_age=600,
+)
+
+# 2. Fix the "sslmode" and SSL errors for Aiven/MySQL
+if db_config:
+    # Remove the 'ssl_require' or 'sslmode' that causes the crash
+    db_config.pop('ssl_require', None)
+    db_config.pop('sslmode', None)
+    
+    # Add the specific SSL format MySQL requires
+    if not DEBUG:
+        db_config['OPTIONS'] = {
+            'ssl': {'ca': None}
+        }
+
+DATABASES = {'default': db_config}
 CORS_ALLOW_ALL_ORIGINS = True 
 
 # --- STATIC FILES ---
