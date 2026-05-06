@@ -75,10 +75,9 @@ DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
         conn_max_age=600,
-        ssl_require=True
+        ssl_require=not DEBUG 
     )
-}
-# --- CORS SETTINGS (For Flutter APK) ---
+}# --- CORS SETTINGS (For Flutter APK) ---
 CORS_ALLOW_ALL_ORIGINS = True 
 
 # --- STATIC FILES ---
@@ -94,3 +93,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 TIME_ZONE = 'Asia/Dhaka'
 USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Use the custom user model from the accounts app
+AUTH_USER_MODEL = 'accounts.User'
