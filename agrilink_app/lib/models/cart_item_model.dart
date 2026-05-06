@@ -21,7 +21,7 @@ class CartItem {
     this.imagePath = '',
     this.quantity = 1,
     required this.location,
-    this.stock = 999,
+    this.stock = 0, // ডিফল্ট স্টক ০ দিন
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -37,8 +37,8 @@ class CartItem {
       unitType: json['unit_type'] ?? '',
       imagePath: json['image_path'] ?? '',
       quantity: json['quantity'] ?? 1,
-      // CHANGE THIS LINE: fallback to 999 instead of 0
-      stock: json['product_stock'] ?? json['stock'] ?? 999,
+      // এখানে গুরুত্বপূর্ণ পরিবর্তন:
+      stock: json['stock'] ?? json['product_stock'] ?? 0,
     );
   }
 }
