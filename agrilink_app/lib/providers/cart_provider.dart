@@ -36,7 +36,7 @@ class CartProvider extends ChangeNotifier {
       return;
     }
 
-    int availableStock = maxStock > 0 ? maxStock : _items[index].stock;
+    int availableStock = maxStock > 0 ? maxStock : _items[index].stock.toInt();
 
     if (availableStock <= 0) {
       availableStock = 999;

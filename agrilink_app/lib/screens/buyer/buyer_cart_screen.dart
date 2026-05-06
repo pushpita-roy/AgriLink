@@ -116,7 +116,7 @@ class BuyerCartScreen extends StatelessWidget {
                                       cartProvider.updateQuantity(
                                         item.id,
                                         item.quantity - 1,
-                                        item.stock,
+                                        item.stock.toInt(),
                                       );
                                     },
                                   ),
@@ -135,25 +135,20 @@ class BuyerCartScreen extends StatelessWidget {
                                   _QuantityButton(
                                     icon: Icons.add,
                                     onPressed: () {
-                                      // FIX: সরাসরি item.stock এর সাথে তুলনা
-                                      if (item.quantity < item.stock) {
+                                      // Corrected logic: No extra bracket before 'else'
+                                      if (item.quantity < item.stock.toInt()) {
                                         cartProvider.updateQuantity(
                                           item.id,
                                           item.quantity + 1,
-                                          item.stock,
+                                          item.stock.toInt(),
                                         );
                                       } else {
-                                        ScaffoldMessenger.of(context)
-                                            .hideCurrentSnackBar();
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
+                                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                        ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text(
-                                                'Stock limit exceeded! Only ${item.stock} available.'),
-                                            backgroundColor:
-                                            Colors.orange,
-                                            behavior: SnackBarBehavior
-                                                .floating,
+                                            content: Text('Stock limit exceeded! Only ${item.stock.toInt()} available.'),
+                                            backgroundColor: Colors.orange,
+                                            behavior: SnackBarBehavior.floating,
                                           ),
                                         );
                                       }
