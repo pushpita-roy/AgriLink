@@ -8,8 +8,8 @@ django.setup()
 from accounts.models import User
 
 # Configuration
-USERNAME = 'admin'
-EMAIL = 'admin@agrilink.com'
+USERNAME = 'superuser'
+EMAIL = 'superuser@agrilink.com'
 PASSWORD = '@Superuser0'  # FIXED: Added quotes around the password
 
 def create_superuser():
