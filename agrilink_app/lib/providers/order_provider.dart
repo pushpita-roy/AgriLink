@@ -102,7 +102,6 @@ class OrderProvider extends ChangeNotifier {
       double itemsTotal = 0.0;
 
       final formattedItems = items.map((item) {
-
         double price = double.tryParse(item['price_per_unit']?.toString() ?? '') ??
             double.tryParse(item['price']?.toString() ?? '') ?? 0.0;
         int qty = int.tryParse(item['quantity']?.toString() ?? '1') ?? 1;
@@ -110,7 +109,7 @@ class OrderProvider extends ChangeNotifier {
         itemsTotal += (price * qty);
 
         return {
-          'product': item['product_id'],
+          'product_id': item['product_id'],
           'quantity': qty,
           'price': price,
         };
