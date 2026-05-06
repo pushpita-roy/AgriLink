@@ -176,11 +176,3 @@ def order_stats_view(request):
         'total_orders': total_orders,
         'pending_orders': pending_orders,
     }, status=status.HTTP_200_OK)
-
-from django.urls import path
-from . import views
-
-urlpatterns = [
-    # ... other paths ...
-    path('<int:pk>/status/', views.update_order_status_view, name='update-order-status'),
-]
