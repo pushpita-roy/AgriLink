@@ -182,25 +182,37 @@ def update_order_status_view(request, pk):
     return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
 
 
+from django.db.models import Sum
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def order_stats_view(request):
-    """Get order statistics for the dashboard."""
     user = request.user
     
-    if user.role == 'admin':
-        total_orders = Order.objects.count()
+    # Use .lower() to handle "Admin" or "admin" from the database
+    user_role = getattr(user, 'role', '').lower()
+    
+    if user_role == 'admin':
+        # Admin counts EVERYTHING in the database
+        total_orders = Order.objects.count() 
         pending_orders = Order.objects.filter(status='Pending').count()
-    elif user.role == 'farmer':
+        total_revenue = Order.objects.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        
+    elif user_role == 'farmer':
         farmer_orders = Order.objects.filter(items__farmer=user).distinct()
         total_orders = farmer_orders.count()
         pending_orders = farmer_orders.filter(status='Pending').count()
+        total_revenue = farmer_orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        
     else:
+        # Buyer logic
         buyer_orders = Order.objects.filter(buyer=user)
         total_orders = buyer_orders.count()
         pending_orders = buyer_orders.filter(status='Pending').count()
+        total_revenue = 0 
 
     return Response({
         'total_orders': total_orders,
         'pending_orders': pending_orders,
+        'total_revenue': total_revenue,
     }, status=status.HTTP_200_OK)
