@@ -10,7 +10,8 @@ class CartItemSerializer(serializers.ModelSerializer):
     price_per_unit = serializers.DecimalField(source='product.price_per_unit', max_digits=10, decimal_places=2, read_only=True)
     unit_type = serializers.CharField(source='product.unit_type', read_only=True)
 
-    # Custom calculated fields
+    stock_qty = serializers.DecimalField(source='product.stock_qty', max_digits=10, decimal_places=2, read_only=True)    
+
     image_path = serializers.SerializerMethodField()
     line_total = serializers.ReadOnlyField()
 
@@ -26,6 +27,7 @@ class CartItemSerializer(serializers.ModelSerializer):
             'quantity',
             'image_path',
             'line_total'
+            'stock_qty'
         ]
 
     def get_image_path(self, obj):

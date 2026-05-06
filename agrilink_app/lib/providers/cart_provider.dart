@@ -5,37 +5,54 @@ import '../services/api_service.dart';
 
 class CartProvider extends ChangeNotifier {
   List<CartItem> _items = [];
-
   List<CartItem> get items => List.unmodifiable(_items);
   int get itemCount => _items.length;
 
-  double get totalAmount {
-    return _items.fold(0, (sum, item) => sum + item.lineTotal);
-  }
-
-  bool isInCart(String productId) {
-    return _items.any((item) => item.productId == productId);
-  }
+  double get totalAmount => _items.fold(0, (sum, item) => sum + item.lineTotal);
 
   Future<void> fetchCart() async {
     try {
       final response = await ApiService.getCart();
       final itemsList = response is List ? response : (response['items'] ?? []);
-
-      _items = (itemsList as List).map((j) {
-        final item = CartItem.fromJson(j);
-        // অটো-কারেকশন: যদি কার্টে স্টকের বেশি থাকে তবে কমিয়ে দাও
-        if (item.stock > 0 && item.quantity > item.stock) {
-          item.quantity = item.stock;
-          final apiId = int.tryParse(item.id);
-          if (apiId != null) ApiService.updateCartItem(apiId, item.stock);
-        }
-        return item;
-      }).toList();
-
+      _items = (itemsList as List).map((j) => CartItem.fromJson(j)).toList();
       notifyListeners();
     } catch (e) {
-      print("DEBUG: Fetch Cart Error: $e");
+      print("Fetch Cart Error: $e");
+    }
+  }
+
+  Future<void> updateQuantity(String cartItemId, int quantity, int maxStock) async {
+    final index = _items.indexWhere((item) => item.id == cartItemId);
+    if (index == -1) return;
+
+    if (quantity <= 0) {
+      await removeFromCart(cartItemId);
+      return;
+    }
+
+    // Determine actual available stock
+    int availableStock = maxStock > 0 ? maxStock : _items[index].stock;
+
+    // SAFETY FALLBACK: If app thinks stock is 0 but item is in cart, bypass the block
+    if (availableStock <= 0) {
+      availableStock = 999;
+    }
+
+    if (quantity > availableStock) {
+      notifyListeners(); // Triggers "Stock limit reached" snackbar in UI
+      return;
+    }
+
+    _items[index].quantity = quantity;
+    notifyListeners();
+
+    try {
+      final apiId = int.tryParse(cartItemId);
+      if (apiId != null) {
+        await ApiService.updateCartItem(apiId, quantity);
+      }
+    } catch (e) {
+      await fetchCart(); // Revert on failure
     }
   }
 
@@ -74,20 +91,27 @@ class CartProvider extends ChangeNotifier {
       return;
     }
 
-    // প্লাস বাটন লজিক: স্টকের বেশি হতে দেবে না
-    int availableStock = _items[index].stock > 0 ? _items[index].stock : maxStock;
-    int finalQuantity = quantity > availableStock ? availableStock : quantity;
+    int availableStock = maxStock > 0 ? maxStock : _items[index].stock;
 
-    _items[index].quantity = finalQuantity;
+    if (availableStock <= 0) {
+      availableStock = _items[index].quantity > 0 ? _items[index].quantity : 1;
+    }
+
+    if (quantity > availableStock) {
+      notifyListeners();
+      return;
+    }
+
+    _items[index].quantity = quantity;
     notifyListeners();
 
     try {
       final apiId = int.tryParse(cartItemId);
       if (apiId != null) {
-        await ApiService.updateCartItem(apiId, finalQuantity);
+        await ApiService.updateCartItem(apiId, quantity);
       }
     } catch (e) {
-      fetchCart();
+      await fetchCart();
     }
   }
 

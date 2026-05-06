@@ -113,7 +113,6 @@ class BuyerCartScreen extends StatelessWidget {
                                   _QuantityButton(
                                     icon: Icons.remove,
                                     onPressed: () {
-                                      // সরাসরি প্রোভাইডার কল করছি, ১ থেকে কমলে ০ হয়ে রিমুভ হবে
                                       cartProvider.updateQuantity(
                                         item.id,
                                         item.quantity - 1,
@@ -136,7 +135,7 @@ class BuyerCartScreen extends StatelessWidget {
                                   _QuantityButton(
                                     icon: Icons.add,
                                     onPressed: () {
-                                      // ফিক্স: কার্টে থাকা সংখ্যা যদি মোট স্টকের চেয়ে কম হয়, তবেই বাড়তে দিবে
+                                      // FIX: সরাসরি item.stock এর সাথে তুলনা
                                       if (item.quantity < item.stock) {
                                         cartProvider.updateQuantity(
                                           item.id,
@@ -150,7 +149,7 @@ class BuyerCartScreen extends StatelessWidget {
                                             .showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                                'Stock limit reached! Only ${item.stock} available.'),
+                                                'Stock limit exceeded! Only ${item.stock} available.'),
                                             backgroundColor:
                                             Colors.orange,
                                             behavior: SnackBarBehavior
@@ -276,17 +275,16 @@ class BuyerCartScreen extends StatelessWidget {
 
   void _showCheckoutDialog(BuildContext context) {
     final cartProvider = context.read<CartProvider>();
-    final user = context.read<AuthProvider>().currentUser!;
+    final authProvider = context.read<AuthProvider>();
+    final user = authProvider.currentUser;
+
+    if (user == null) return;
+
     String paymentMethod = 'COD';
-
     final String bDiv = (user.division ?? "").toString().trim().toLowerCase();
-
     String fDiv = "";
     if (cartProvider.items.isNotEmpty) {
-      fDiv = (cartProvider.items.first.location ?? "")
-          .toString()
-          .trim()
-          .toLowerCase();
+      fDiv = (cartProvider.items.first.location ?? "").toString().trim().toLowerCase();
     }
 
     bool isSame = (bDiv.isNotEmpty && fDiv.isNotEmpty && bDiv == fDiv);
@@ -314,8 +312,7 @@ class BuyerCartScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text('Checkout',
-                      style:
-                      TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 20),
                   ListTile(
                     leading: const Icon(Icons.location_on, color: Colors.green),
@@ -324,13 +321,11 @@ class BuyerCartScreen extends StatelessWidget {
                     contentPadding: EdgeInsets.zero,
                   ),
                   const Divider(),
-                  _buildPriceRow(
-                      'Subtotal:', 'TK ${cartProvider.totalAmount.toInt()}'),
+                  _buildPriceRow('Subtotal:', 'TK ${cartProvider.totalAmount.toInt()}'),
                   _buildPriceRow(
                     'Delivery Fee:',
                     'TK ${deliveryFee.toInt()}',
-                    subtitle:
-                    isSame ? '(Inside Division)' : '(Outside Division)',
+                    subtitle: isSame ? '(Inside Division)' : '(Outside Division)',
                     color: isSame ? Colors.green : Colors.orange,
                   ),
                   const Divider(),
@@ -338,8 +333,7 @@ class BuyerCartScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Total Amount:',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       Text('TK ${grandTotal.toInt()}',
                           style: const TextStyle(
                               fontSize: 22,
