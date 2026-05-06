@@ -218,8 +218,8 @@ class ApiService {
     required double totalAmount,
   }) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/orders/add/'),
-      headers: _headers, // Includes your Token
+      Uri.parse('$baseUrl/orders/place/'),
+      headers: _headers,
       body: jsonEncode({
         'payment_method': paymentMethod,
         'shipping_address': shippingAddress,

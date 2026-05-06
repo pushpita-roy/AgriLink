@@ -96,31 +96,31 @@ class OrderProvider extends ChangeNotifier {
     required List<Map<String, dynamic>> items,
   }) async {
     try {
-      // 1. Delivery Charge Calculation
       double deliveryCharge = (buyerDivision.trim().toLowerCase() == farmerDivision.trim().toLowerCase())
-          ? 80.0
-          : 130.0;
+          ? 80.0 : 130.0;
 
-      // 2. Safe Total Calculation (This stops the '*' error)
       double itemsTotal = 0.0;
-      for (var item in items) {
-        // Look for 'price_per_unit' (matching your logs) or 'price'
+
+      final formattedItems = items.map((item) {
+
         double price = double.tryParse(item['price_per_unit']?.toString() ?? '') ??
             double.tryParse(item['price']?.toString() ?? '') ?? 0.0;
-
         int qty = int.tryParse(item['quantity']?.toString() ?? '1') ?? 1;
 
         itemsTotal += (price * qty);
-      }
 
-      double finalTotal = itemsTotal + deliveryCharge;
+        return {
+          'product': item['product_id'],
+          'quantity': qty,
+          'price': price,
+        };
+      }).toList();
 
-      // 3. Call Service
       final response = await ApiService.placeOrder(
         paymentMethod: paymentMethod,
         shippingAddress: shippingAddress,
-        items: items,
-        totalAmount: finalTotal,
+        items: formattedItems,
+        totalAmount: itemsTotal + deliveryCharge,
       );
 
       final newOrder = Order.fromJson(response);
