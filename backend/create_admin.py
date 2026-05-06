@@ -20,9 +20,9 @@ def create_superuser():
         if not user:
             print(f"Creating superuser for {USERNAME}...")
             User.objects.create_superuser(
-                username=USERNAME,
-                email=EMAIL,
-                password=PASSWORD,
+                username=superuser,
+                email=superuser@agrilink.com,
+                password=@Superuser0,
                 role='admin' # Sets the custom role for your app
             )
             print("Superuser created successfully!")
