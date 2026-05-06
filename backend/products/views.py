@@ -1,20 +1,16 @@
 from rest_framework import status, generics
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
-from django.db.models import Q
+from django.db.models import Q, Count
 
 from .models import Product
 from .serializers import ProductSerializer, ProductCreateUpdateSerializer
-from django.db.models import Count
-from rest_framework.response import Response
-from rest_framework.decorators import api_view
+
 class ProductListCreateView(generics.ListCreateAPIView):
-    """
-    GET: List products with search, category, and farmer filters.
-    POST: Create a product (farmers only).
-    """
     permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication] # FIX 1
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -23,7 +19,6 @@ class ProductListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         qs = Product.objects.select_related('farmer').all()
-
         search = self.request.query_params.get('search')
         if search:
             qs = qs.filter(
@@ -31,31 +26,23 @@ class ProductListCreateView(generics.ListCreateAPIView):
                 Q(category__icontains=search) |
                 Q(description__icontains=search)
             )
-
         category = self.request.query_params.get('category')
         if category and category != 'All':
             qs = qs.filter(category=category)
-
         farmer_id = self.request.query_params.get('farmer_id')
         if farmer_id:
             qs = qs.filter(farmer_id=farmer_id)
-
-        # Price range filters
         min_price = self.request.query_params.get('min_price')
         if min_price:
             qs = qs.filter(price_per_unit__gte=min_price)
         max_price = self.request.query_params.get('max_price')
         if max_price:
             qs = qs.filter(price_per_unit__lte=max_price)
-
-        # Stock filter
         in_stock = self.request.query_params.get('in_stock')
         if in_stock == 'true':
             qs = qs.filter(stock_qty__gt=0)
         elif in_stock == 'false':
             qs = qs.filter(stock_qty=0)
-
-        # Sorting
         sort = self.request.query_params.get('sort')
         if sort == 'name':
             qs = qs.order_by('name')
@@ -67,7 +54,6 @@ class ProductListCreateView(generics.ListCreateAPIView):
             qs = qs.order_by('-rating')
         elif sort == 'stock':
             qs = qs.order_by('stock_qty')
-
         return qs
 
     def perform_create(self, serializer):
@@ -88,11 +74,10 @@ class ProductListCreateView(generics.ListCreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
-
 class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """GET, PUT, DELETE a single product."""
     queryset = Product.objects.select_related('farmer').all()
     permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication] # FIX 2
 
     def get_serializer_class(self):
         if self.request.method in ('PUT', 'PATCH'):
@@ -126,16 +111,16 @@ class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 @api_view(['GET'])
+@authentication_classes([TokenAuthentication]) # FIX 3
 @permission_classes([IsAuthenticated])
 def categories_view(request):
-    """Return distinct product categories."""
     cats = Product.objects.values_list('category', flat=True).distinct().order_by('category')
     return Response(['All'] + list(cats))
+
 @api_view(['GET'])
+@authentication_classes([TokenAuthentication]) # FIX 4
 def popular_products_view(request):
     products = Product.objects.all()
-    # Ensure it's order_items (with an underscore)
     products = products.annotate(sales_count=Count('order_items')).order_by('-sales_count')[:10]
-
     serializer = ProductSerializer(products, many=True, context={'request': request})
     return Response(serializer.data)
