@@ -219,7 +219,7 @@ class ApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/orders/add/'),
-      headers: _headers, // This includes your Auth Token
+      headers: _headers, // Includes your Token
       body: jsonEncode({
         'payment_method': paymentMethod,
         'shipping_address': shippingAddress,
