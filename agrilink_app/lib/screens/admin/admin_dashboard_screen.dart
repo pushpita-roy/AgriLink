@@ -5,9 +5,42 @@ import '../../providers/product_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../models/order_model.dart';
 import '../../utils/constants.dart';
+import '../../services/api_service.dart';
 
-class AdminDashboardScreen extends StatelessWidget {
+class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
+
+  @override
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
+
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  // Local variables to hold the REAL numbers from the database
+  int totalOrdersCount = 0;
+  int pendingOrdersCount = 0;
+  double platformRevenue = 0.0;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      final stats = await ApiService.getOrderStats();
+      setState(() {
+        totalOrdersCount = stats['total_orders'] ?? 0;
+        pendingOrdersCount = stats['pending_orders'] ?? 0;
+        platformRevenue = (stats['total_revenue'] ?? 0).toDouble();
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error: $e');
+      setState(() => isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,112 +49,119 @@ class AdminDashboardScreen extends StatelessWidget {
     final orders = context.watch<OrderProvider>().orders;
     final users = auth.allUsers;
 
-    final totalRevenue = orders
-        .where((o) => o.paymentStatus == PaymentStatus.paid)
-        .fold<double>(0, (sum, o) => sum + o.totalAmount);
-
-    final pendingOrders =
-        orders.where((o) => o.status == OrderStatus.pending).length;
-
     return Scaffold(
       appBar: AppBar(title: const Text('Admin Dashboard')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppDimens.paddingMedium),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Welcome, ${auth.currentUser?.name ?? 'Admin'}',
-              style: AppTextStyles.heading2,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Here\'s your platform overview',
-              style: AppTextStyles.bodySmall,
-            ),
-            const SizedBox(height: AppDimens.paddingLarge),
-
-            // Stats Grid
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.5,
-              children: [
-                _StatCard(
-                  title: 'Total Users',
-                  value: '${users.length}',
-                  icon: Icons.people,
-                  color: Colors.blue,
-                ),
-                _StatCard(
-                  title: 'Products',
-                  value: '${products.length}',
-                  icon: Icons.inventory_2,
-                  color: AppColors.primary,
-                ),
-                _StatCard(
-                  title: 'Orders',
-                  value: '${orders.length}',
-                  icon: Icons.receipt_long,
-                  color: AppColors.accent,
-                ),
-                _StatCard(
-                  title: 'Revenue',
-                  value: '৳${totalRevenue.toStringAsFixed(0)}',
-                  icon: Icons.account_balance_wallet,
-                  color: Colors.purple,
-                ),
-              ],
-            ),
-            const SizedBox(height: AppDimens.paddingLarge),
-
-            // Pending Orders Alert
-            if (pendingOrders > 0)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppDimens.paddingMedium),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppDimens.borderRadius),
-                  border: Border.all(
-                    color: AppColors.accent.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber_rounded,
-                        color: AppColors.accent),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        '$pendingOrders pending order${pendingOrders > 1 ? 's' : ''} require attention',
-                        style: AppTextStyles.body.copyWith(
-                          color: Colors.orange.shade800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+        onRefresh: _loadStats,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppDimens.paddingMedium),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Welcome, ${auth.currentUser?.name ?? 'Admin'}',
+                style: AppTextStyles.heading2,
               ),
-            const SizedBox(height: AppDimens.paddingLarge),
+              const SizedBox(height: 4),
+              Text('Here\'s your platform overview',
+                  style: AppTextStyles.bodySmall),
+              const SizedBox(height: AppDimens.paddingLarge),
 
-            // Recent Orders
-            Text('Recent Orders', style: AppTextStyles.heading3),
-            const SizedBox(height: 12),
-            if (orders.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('No orders yet'),
-                ),
-              )
-            else
-              ...orders.take(5).map((order) => _RecentOrderTile(order: order)),
-          ],
+              // Stats Grid
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.5,
+                children: [
+                  _StatCard(
+                    title: 'Total Users',
+                    value: '${users.length}',
+                    icon: Icons.people,
+                    color: Colors.blue,
+                  ),
+                  _StatCard(
+                    title: 'Products',
+                    value: '${products.length}',
+                    icon: Icons.inventory_2,
+                    color: AppColors.primary,
+                  ),
+                  _StatCard(
+                    title: 'Orders',
+                    value: '$totalOrdersCount', // FIXED: Uses real DB count
+                    icon: Icons.receipt_long,
+                    color: AppColors.accent,
+                  ),
+                  _StatCard(
+                    title: 'Revenue',
+                    value: '৳${platformRevenue.toStringAsFixed(0)}', // FIXED: Uses real DB total
+                    icon: Icons.account_balance_wallet,
+                    color: Colors.purple,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: AppDimens.paddingLarge),
+
+              // Pending Orders Alert
+              if (pendingOrdersCount > 0)
+                _PendingAlert(count: pendingOrdersCount),
+
+              const SizedBox(height: AppDimens.paddingLarge),
+              Text('Recent Orders', style: AppTextStyles.heading3),
+              const SizedBox(height: 12),
+
+              if (orders.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text('No orders yet'),
+                  ),
+                )
+              else
+                ...orders.take(5).map((order) => _RecentOrderTile(order: order)),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+// Helper Widget for Pending Alert
+class _PendingAlert extends StatelessWidget {
+  final int count;
+  const _PendingAlert({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppDimens.paddingMedium),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppDimens.borderRadius),
+        border: Border.all(
+          color: AppColors.accent.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: AppColors.accent),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '$count pending order${count > 1 ? 's' : ''} require attention',
+              style: AppTextStyles.body.copyWith(
+                color: Colors.orange.shade800,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -193,16 +233,11 @@ class _RecentOrderTile extends StatelessWidget {
 
   Color _statusColor(OrderStatus status) {
     switch (status) {
-      case OrderStatus.pending:
-        return Colors.orange;
-      case OrderStatus.confirmed:
-        return Colors.blue;
-      case OrderStatus.shipped:
-        return Colors.indigo;
-      case OrderStatus.delivered:
-        return AppColors.primary;
-      case OrderStatus.cancelled:
-        return AppColors.error;
+      case OrderStatus.pending: return Colors.orange;
+      case OrderStatus.confirmed: return Colors.blue;
+      case OrderStatus.shipped: return Colors.indigo;
+      case OrderStatus.delivered: return AppColors.primary;
+      case OrderStatus.cancelled: return AppColors.error;
     }
   }
 }

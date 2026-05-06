@@ -27,7 +27,6 @@ class ApiService {
 
     final result = _handleResponse(response);
 
-    // FIXED: Save the token so other requests can use it
     if (result != null && result['token'] != null) {
       _token = result['token'];
     }
@@ -56,7 +55,6 @@ class ApiService {
 
     final result = _handleResponse(response);
 
-    // FIXED: Save the token after registration too
     if (result != null && result['token'] != null) {
       _token = result['token'];
     }
@@ -120,7 +118,6 @@ class ApiService {
     var request = http.MultipartRequest(
         'POST', Uri.parse('$baseUrl/products/'));
 
-    // VERIFIED: Header must have the space after 'Token '
     if (_token != null) {
       request.headers['Authorization'] = 'Token $_token';
     }
@@ -189,6 +186,14 @@ class ApiService {
   }
 
   // ── Orders Section ────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> getOrderStats() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/orders/stats/'),
+      headers: _headers,
+    );
+    return _handleResponse(response);
+  }
+
   static Future<Map<String, dynamic>> getOrders({
     String? status, String? paymentStatus, String? search, String? sort, String? dateFrom, String? dateTo,
   }) async {
