@@ -24,12 +24,12 @@ class CartProvider extends ChangeNotifier {
 
       _items = (itemsList as List).map((j) {
         final item = CartItem.fromJson(j);
-
-        // --- গুরুত্বপূর্ণ: ডাটা লোড হওয়ার সময় স্টক ভ্যালিডেশন ---
-        // যদি কার্টে স্টকের চেয়ে বেশি পণ্য থাকে (যেমন আপনার স্ক্রিনশটে ৬ > ২),
-        // তবে এটি অটোমেটিক কোয়ান্টিটিকে স্টকের সমান করে দেবে।
         if (item.stock > 0 && item.quantity > item.stock) {
           item.quantity = item.stock;
+
+          // এপিআইকেও জানিয়ে দাও যে এটা কমিয়ে দেওয়া হয়েছে
+          final apiId = int.tryParse(item.id);
+          if (apiId != null) ApiService.updateCartItem(apiId, item.stock);
         }
         return item;
       }).toList();
