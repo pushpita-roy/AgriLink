@@ -10,7 +10,6 @@ from .serializers import (
     OrderSerializer, OrderCreateSerializer, OrderStatusUpdateSerializer,
 )
 
-
 class OrderListView(generics.ListAPIView):
     """
     List orders for the current user.
@@ -78,7 +77,6 @@ def place_order_view(request):
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
 
-    # Build order items and calculate total
     order_items_data = []
     total_amount = 0
 
@@ -107,7 +105,6 @@ def place_order_view(request):
             'quantity': item_data['quantity'],
         })
 
-    # Create order
     order = Order.objects.create(
         buyer=request.user,
         total_amount=total_amount,
@@ -115,14 +112,12 @@ def place_order_view(request):
         shipping_address=data['shipping_address'],
     )
 
-    # Create order items and reduce stock
     for item_data in order_items_data:
         product = item_data.pop('product')
         OrderItem.objects.create(order=order, product=product, **item_data)
         product.stock_qty -= item_data['quantity']
         product.save(update_fields=['stock_qty'])
 
-    # Clear the user's cart
     request.user.cart_items.all().delete()
 
     order = Order.objects.select_related('buyer').prefetch_related(
@@ -145,29 +140,62 @@ class OrderDetailView(generics.RetrieveAPIView):
             'items__product', 'items__farmer'
         )
 
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_order_status_view(request, pk):
+    """Update order status and handle stock restoration if cancelled."""
+    try:
+        order = Order.objects.prefetch_related('items__product').get(pk=pk)
+    except Order.DoesNotExist:
+        return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    user = request.user
+    if user.role not in ('admin', 'farmer'):
+        return Response({'detail': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
+    serializer = OrderStatusUpdateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    requested_status = serializer.validated_data['status']
+    new_status_upper = requested_status.upper()
+    old_status_upper = order.status.upper()
+
+    if new_status_upper == 'CANCELLED' and old_status_upper != 'CANCELLED':
+        for item in order.items.all():
+            product = item.product
+            if product:
+                product.stock_qty += item.quantity
+                product.save()
+
+    elif old_status_upper == 'CANCELLED' and new_status_upper != 'CANCELLED':
+        for item in order.items.all():
+            product = item.product
+            if product:
+                product.stock_qty -= item.quantity
+                product.save()
+
+    order.status = requested_status
+    if 'payment_status' in serializer.validated_data:
+        order.payment_status = serializer.validated_data['payment_status']
+
+    order.save()
+    return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def order_stats_view(request):
-    """
-    Get order statistics for the dashboard.
-    Admins see platform totals.
-    Others see personal totals.
-    """
+    """Get order statistics for the dashboard."""
     user = request.user
     
     if user.role == 'admin':
-        # Admin: Fetch EVERY order in the database
         total_orders = Order.objects.count()
         pending_orders = Order.objects.filter(status='Pending').count()
     elif user.role == 'farmer':
-        # Farmer: Only count orders containing their products
-        # Using .distinct() to avoid double counting if multiple products are in one order
         farmer_orders = Order.objects.filter(items__farmer=user).distinct()
         total_orders = farmer_orders.count()
         pending_orders = farmer_orders.filter(status='Pending').count()
     else:
-        # Buyer: Only count orders they placed
         buyer_orders = Order.objects.filter(buyer=user)
         total_orders = buyer_orders.count()
         pending_orders = buyer_orders.filter(status='Pending').count()
