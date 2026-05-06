@@ -113,7 +113,7 @@ class BuyerCartScreen extends StatelessWidget {
                                   _QuantityButton(
                                     icon: Icons.remove,
                                     onPressed: () {
-                                      // সরাসরি প্রোভাইডার কল করছি, ০ হলে রিমুভ হবে
+                                      // সরাসরি প্রোভাইডার কল করছি, ১ থেকে কমলে ০ হয়ে রিমুভ হবে
                                       cartProvider.updateQuantity(
                                         item.id,
                                         item.quantity - 1,
@@ -136,6 +136,7 @@ class BuyerCartScreen extends StatelessWidget {
                                   _QuantityButton(
                                     icon: Icons.add,
                                     onPressed: () {
+                                      // ফিক্স: কার্টে থাকা সংখ্যা যদি মোট স্টকের চেয়ে কম হয়, তবেই বাড়তে দিবে
                                       if (item.quantity < item.stock) {
                                         cartProvider.updateQuantity(
                                           item.id,
@@ -149,7 +150,7 @@ class BuyerCartScreen extends StatelessWidget {
                                             .showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                                'Stock limit exceeded! Only ${item.stock} available.'),
+                                                'Stock limit reached! Only ${item.stock} available.'),
                                             backgroundColor:
                                             Colors.orange,
                                             behavior: SnackBarBehavior
