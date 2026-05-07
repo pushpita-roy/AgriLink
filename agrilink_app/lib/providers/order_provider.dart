@@ -76,11 +76,16 @@ class OrderProvider extends ChangeNotifier {
         sort: sort,
       );
 
-      final results = response is List ? response : (response['results'] ?? response['data'] ?? []);
+      List<dynamic> results;
+      if (response is List) {
+        results = response;
+      } else if (response is Map && response.containsKey('results')) {
+        results = response['results'];
+      } else {
+        results = [];
+      }
 
-      _orders = (results as List)
-          .map((j) => Order.fromJson(j))
-          .toList();
+      _orders = results.map((j) => Order.fromJson(j)).toList();
     } catch (e) {
       debugPrint('Fetch Orders Error: $e');
     }
@@ -99,20 +104,15 @@ class OrderProvider extends ChangeNotifier {
       double deliveryCharge = (buyerDivision.trim().toLowerCase() == farmerDivision.trim().toLowerCase())
           ? 80.0 : 130.0;
 
-      double itemsTotal = 0.0; // Starts at 0
-
-      // FIX: Calculate the items total INSIDE the loop
+      double itemsTotal = 0.0;
       final formattedItems = items.map((item) {
         double price = double.tryParse(item['price_per_unit']?.toString() ?? '0') ?? 0.0;
         int qty = int.tryParse(item['quantity']?.toString() ?? '1') ?? 1;
-
-        // Update the running total!
         itemsTotal += (price * qty);
 
         return {
           'product_id': int.tryParse(item['product_id'].toString()) ?? 0,
           'quantity': qty,
-          'price': price,
         };
       }).toList();
 
