@@ -51,54 +51,51 @@ def place_order_view(request):
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
 
-    order_items_data = []
-    total_amount = Decimal('0.00') 
-
-    # 1. Logic & Stock Check
-    for item_data in data['items']:
-        try:
-            p_id = int(item_data['product_id'])
-            # select_for_update prevents race conditions
-            product = Product.objects.select_for_update().get(pk=p_id)
-            
-            qty = int(item_data['quantity'])
-            if product.stock_qty < qty:
-                return Response({'detail': f"No stock for {product.name}"}, status=400)
-
-            # Use product price directly from DB to ensure accuracy
-            price = Decimal(str(product.price_per_unit))
-            total_amount += (price * qty)
-            
-            order_items_data.append({
-                'product': product,
-                'unit_price': price,
-                'quantity': qty,
-                'product_name': product.name,
-                'farmer': product.farmer
-            })
-        except Exception as e:
-            return Response({'detail': f"Product Error: {str(e)}"}, status=400)
-
-    # 2. Database Save
     try:
+        # --- MOVE TRANSACTION TO THE TOP ---
         with transaction.atomic():
+            order_items_data = []
+            total_amount = Decimal('0.00') 
+
+            # 1. Logic & Stock Check (Now safely inside the transaction)
+            for item_data in data['items']:
+                p_id = int(item_data['product_id'])
+                
+                # Now select_for_update will work because we are inside atomic()
+                product = Product.objects.select_for_update().get(pk=p_id)
+                
+                qty = int(item_data['quantity'])
+                if product.stock_qty < qty:
+                    return Response({'detail': f"No stock for {product.name}"}, status=400)
+
+                price = Decimal(str(product.price_per_unit))
+                total_amount += (price * qty)
+                
+                order_items_data.append({
+                    'product': product,
+                    'unit_price': price,
+                    'quantity': qty,
+                    'product_name': product.name,
+                    'farmer': product.farmer
+                })
+
+            # 2. Create the Order
             order = Order.objects.create(
                 buyer=request.user,
                 total_amount=total_amount,
                 payment_method=data.get('payment_method', 'COD'),
-                # Safe check: uses blank string if address is missing in validated_data
-                shipping_address=data.get('shipping_address', ''), 
+                shipping_address=data.get('shipping_address', ''),
             )
 
+            # 3. Create Items and Update Stock
             for item in order_items_data:
                 p = item.pop('product')
                 OrderItem.objects.create(order=order, product=p, **item)
                 
-                # Update Stock
                 p.stock_qty -= item['quantity']
                 p.save(update_fields=['stock_qty'])
 
-            # 3. Silent Cart Clear
+            # 4. Silent Cart Clear
             try:
                 request.user.cart_items.all().delete()
             except:
@@ -106,10 +103,11 @@ def place_order_view(request):
 
             return Response(OrderSerializer(order).data, status=201)
             
+    except Product.DoesNotExist:
+        return Response({'detail': "Product not found"}, status=404)
     except Exception as e:
-        # returns actual error message for debugging
-        return Response({'detail': f"Database Error: {str(e)}"}, status=500)
-
+        # This will catch any other database issues
+        return Response({'detail': f"Database Error: {str(e)}"}, status=400)
 
 # --- 3. Update Order Status ---
 @api_view(['PATCH'])
