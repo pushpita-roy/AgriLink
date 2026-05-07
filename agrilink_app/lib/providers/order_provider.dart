@@ -76,13 +76,12 @@ class OrderProvider extends ChangeNotifier {
         sort: sort,
       );
 
-      List<dynamic> results;
+      List<dynamic> results = [];
+
       if (response is List) {
         results = response;
-      } else if (response is Map && response.containsKey('results')) {
-        results = response['results'];
-      } else {
-        results = [];
+      } else if (response is Map) {
+        results = response['results'] ?? response['data'] ?? [];
       }
 
       _orders = results.map((j) => Order.fromJson(j)).toList();
