@@ -1,3 +1,4 @@
+from decimal import Decimal  # <--- CRITICAL IMPORT
 from rest_framework import status, generics
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -42,7 +43,7 @@ class OrderListView(generics.ListAPIView):
         return qs.order_by('-created_at')
 
 
-# --- 2. Place Order Logic (THE FINAL FIX) ---
+# --- 2. Place Order View ---
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def place_order_view(request):
@@ -51,33 +52,34 @@ def place_order_view(request):
     data = serializer.validated_data
 
     order_items_data = []
-    total_amount = 0
+    total_amount = Decimal('0.00') 
 
-    # Step 1: Stock Check & Price Calculation
+    # 1. Logic & Stock Check
     for item_data in data['items']:
         try:
-            # Using select_for_update to prevent race conditions
-            product = Product.objects.select_for_update().get(pk=item_data['product_id'])
-        except Product.DoesNotExist:
-            return Response({'detail': f"Product ID {item_data['product_id']} not found."}, status=400)
+            p_id = int(item_data['product_id'])
+            # select_for_update prevents two people buying the last item at the exact same time
+            product = Product.objects.select_for_update().get(pk=p_id)
+            
+            qty = int(item_data['quantity'])
+            if product.stock_qty < qty:
+                return Response({'detail': f"No stock for {product.name}"}, status=400)
 
-        if product.stock_qty < item_data['quantity']:
-            return Response(
-                {'detail': f"Insufficient stock for {product.name}. Available: {product.stock_qty}"},
-                status=400
-            )
+            # Use product price directly from DB to ensure accuracy
+            price = Decimal(str(product.price_per_unit))
+            total_amount += (price * qty)
+            
+            order_items_data.append({
+                'product': product,
+                'unit_price': price,
+                'quantity': qty,
+                'product_name': product.name,
+                'farmer': product.farmer
+            })
+        except Exception as e:
+            return Response({'detail': f"Product Error: {str(e)}"}, status=400)
 
-        line_total = product.price_per_unit * item_data['quantity']
-        total_amount += line_total
-        order_items_data.append({
-            'product': product,
-            'farmer': product.farmer,
-            'product_name': product.name,
-            'unit_price': product.price_per_unit,
-            'quantity': item_data['quantity'],
-        })
-
-    # Step 2: Atomic Transaction for Database Safety
+    # 2. Database Save
     try:
         with transaction.atomic():
             order = Order.objects.create(
@@ -87,31 +89,25 @@ def place_order_view(request):
                 shipping_address=data['shipping_address'],
             )
 
-            for item_info in order_items_data:
-                product = item_info.pop('product')
-                OrderItem.objects.create(order=order, product=product, **item_info)
+            for item in order_items_data:
+                p = item.pop('product')
+                OrderItem.objects.create(order=order, product=p, **item)
+                
+                # Update Stock
+                p.stock_qty -= item['quantity']
+                p.save(update_fields=['stock_qty'])
 
-                # Reduce Stock
-                product.stock_qty -= item_info['quantity']
-                product.save(update_fields=['stock_qty'])
-
-            # Step 3: Silent Cart Cleanup (Wont crash order if relationship is missing)
+            # 3. Silent Cart Clear
             try:
-                # Option A: Check cart app
-                try:
-                    from cart.models import CartItem
-                    CartItem.objects.filter(user=request.user).delete()
-                except ImportError:
-                    # Option B: Check related_name
-                    request.user.cart_items.all().delete()
-            except Exception:
-                pass 
+                # If your cart items are linked via a related_name 'cart_items'
+                request.user.cart_items.all().delete()
+            except:
+                pass
 
             return Response(OrderSerializer(order).data, status=201)
-
+            
     except Exception as e:
-        # Send actual error back to Flutter for debugging
-        return Response({'detail': str(e)}, status=500)
+        return Response({'detail': f"Database Error: {str(e)}"}, status=500)
 
 
 # --- 3. Update Order Status ---

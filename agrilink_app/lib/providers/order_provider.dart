@@ -69,20 +69,26 @@ class OrderProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      final response = await ApiService.getOrders(
+      final dynamic response = await ApiService.getOrders(
         status: status,
         paymentStatus: paymentStatus,
         search: search,
         sort: sort,
       );
 
-      List<dynamic> results = [];
+      // --- FIXED LOGIC ---
+      List<dynamic> results;
 
       if (response is List) {
+        // If the API returns a direct list []
         results = response;
       } else if (response is Map) {
+        // If the API returns a Map {}, look for 'results' or 'data' keys
         results = response['results'] ?? response['data'] ?? [];
+      } else {
+        results = [];
       }
+      // ------------------
 
       _orders = results.map((j) => Order.fromJson(j)).toList();
     } catch (e) {
