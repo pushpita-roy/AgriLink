@@ -52,16 +52,16 @@ def place_order_view(request):
     data = serializer.validated_data
 
     try:
-        # --- MOVE TRANSACTION TO THE TOP ---
+        # START THE TRANSACTION FIRST
         with transaction.atomic():
             order_items_data = []
-            total_amount = Decimal('0.00') 
+            total_amount = Decimal('0.00')
 
-            # 1. Logic & Stock Check (Now safely inside the transaction)
+            # Now that we are INSIDE the atomic block, we can lock products
             for item_data in data['items']:
                 p_id = int(item_data['product_id'])
                 
-                # Now select_for_update will work because we are inside atomic()
+                # THIS IS THE LINE THAT WAS CRASHING - Now it's inside the transaction
                 product = Product.objects.select_for_update().get(pk=p_id)
                 
                 qty = int(item_data['quantity'])
@@ -79,7 +79,7 @@ def place_order_view(request):
                     'farmer': product.farmer
                 })
 
-            # 2. Create the Order
+            # Create the Order
             order = Order.objects.create(
                 buyer=request.user,
                 total_amount=total_amount,
@@ -87,7 +87,7 @@ def place_order_view(request):
                 shipping_address=data.get('shipping_address', ''),
             )
 
-            # 3. Create Items and Update Stock
+            # Create the Items and Update Stock
             for item in order_items_data:
                 p = item.pop('product')
                 OrderItem.objects.create(order=order, product=p, **item)
@@ -95,18 +95,18 @@ def place_order_view(request):
                 p.stock_qty -= item['quantity']
                 p.save(update_fields=['stock_qty'])
 
-            # 4. Silent Cart Clear
+            # Clear the Cart
             try:
                 request.user.cart_items.all().delete()
-            except:
-                pass
+            except Exception:
+                pass # Cart clearing failed, but don't stop the order
 
             return Response(OrderSerializer(order).data, status=201)
-            
+
     except Product.DoesNotExist:
         return Response({'detail': "Product not found"}, status=404)
     except Exception as e:
-        # This will catch any other database issues
+        # This catches the 'select_for_update' error if it happens again
         return Response({'detail': f"Database Error: {str(e)}"}, status=400)
 
 # --- 3. Update Order Status ---

@@ -1,7 +1,6 @@
 from django.db import models
 from django.conf import settings
 
-
 class Order(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -38,7 +37,8 @@ class Order(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-    return f"Order #{self.id} by {self.buyer.email}"
+        # This line MUST be indented with 4 spaces or a tab
+        return f"Order #{self.id} by {self.buyer.email}"
 
 
 class OrderItem(models.Model):
@@ -63,6 +63,7 @@ class OrderItem(models.Model):
         db_table = 'order_items'
 
     def __str__(self):
+        # This line must also be indented
         return f"{self.product_name} x{self.quantity}"
 
     @property
