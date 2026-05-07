@@ -41,7 +41,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
 class OrderCreateSerializer(serializers.Serializer):
     payment_method = serializers.ChoiceField(choices=['COD', 'Bkash', 'Nagad'], default='COD')
-    shipping_address = serializers.CharField()
+    shipping_address = serializers.CharField(required=False, allow_blank=True)
     items = OrderItemCreateSerializer(many=True)
 
     def validate_items(self, value):

@@ -1,4 +1,4 @@
-from decimal import Decimal  # <--- CRITICAL IMPORT
+from decimal import Decimal  # Added critical import at the top
 from rest_framework import status, generics
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -58,7 +58,7 @@ def place_order_view(request):
     for item_data in data['items']:
         try:
             p_id = int(item_data['product_id'])
-            # select_for_update prevents two people buying the last item at the exact same time
+            # select_for_update prevents race conditions
             product = Product.objects.select_for_update().get(pk=p_id)
             
             qty = int(item_data['quantity'])
@@ -86,7 +86,8 @@ def place_order_view(request):
                 buyer=request.user,
                 total_amount=total_amount,
                 payment_method=data.get('payment_method', 'COD'),
-                shipping_address=data['shipping_address'],
+                # Safe check: uses blank string if address is missing in validated_data
+                shipping_address=data.get('shipping_address', ''), 
             )
 
             for item in order_items_data:
@@ -99,7 +100,6 @@ def place_order_view(request):
 
             # 3. Silent Cart Clear
             try:
-                # If your cart items are linked via a related_name 'cart_items'
                 request.user.cart_items.all().delete()
             except:
                 pass
@@ -107,6 +107,7 @@ def place_order_view(request):
             return Response(OrderSerializer(order).data, status=201)
             
     except Exception as e:
+        # returns actual error message for debugging
         return Response({'detail': f"Database Error: {str(e)}"}, status=500)
 
 

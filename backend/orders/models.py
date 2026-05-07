@@ -38,7 +38,7 @@ class Order(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Order #{self.id} by {self.buyer.name}"
+    return f"Order #{self.id} by {self.buyer.email}"
 
 
 class OrderItem(models.Model):
